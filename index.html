@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAY DESIGN & BUILD | ARCHDUO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Space+Grotesk:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --ink:    #0a0e12;
+  --paper:  #f2efe8;
+  --blue:   #1a3a5c;
+  --grid:   rgba(26,58,92,0.12);
+  --gold:   #b8924a;
+  --dim:    rgba(26,58,92,0.35);
+  --mono:   'Share Tech Mono', monospace;
+  --serif:  'Cormorant Garamond', serif;
+  --sans:   'Space Grotesk', sans-serif;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--paper);
+  color: var(--blue);
+  font-family: var(--mono);
+  overflow-x: hidden;
+  cursor: none;
+}
+
+/* ─── CURSOR ─────────────────────────────────── */
+#cur { position:fixed; width:8px; height:8px; background:var(--blue); pointer-events:none; z-index:9999; transform:translate(-50%,-50%); transition:width .2s,height .2s; }
+#cur-cross-h { position:fixed; height:1px; width:20px; background:var(--blue); pointer-events:none; z-index:9999; transform:translateY(-50%); opacity:.5; }
+#cur-cross-v { position:fixed; width:1px; height:20px; background:var(--blue); pointer-events:none; z-index:9999; transform:translateX(-50%); opacity:.5; }
+
+/* ─── BLUEPRINT GRID BG ──────────────────────── */
+body::before {
+  content:'';
+  position:fixed; inset:0; z-index:0; pointer-events:none;
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+    linear-gradient(rgba(26,58,92,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(26,58,92,0.05) 1px, transparent 1px);
+  background-size: 80px 80px, 80px 80px, 16px 16px, 16px 16px;
+}
+
+/* ─── CANVAS ─────────────────────────────────── */
+#bg-canvas {
+  position:fixed; inset:0; z-index:0;
+  pointer-events:none; opacity:.45;
+}
+
+/* ─── CORNER HUD ELEMENTS ────────────────────── */
+.hud {
+  position:fixed; z-index:50; font-family:var(--mono);
+  font-size:10px; color:var(--dim); letter-spacing:.15em;
+  line-height:1.8; pointer-events:none;
+}
+.hud-tl { top:24px; left:24px; }
+.hud-tr { top:24px; right:24px; text-align:right; }
+.hud-bl { bottom:24px; left:24px; }
+.hud-br { bottom:24px; right:24px; text-align:right; }
+.hud .label { color:var(--gold); }
+#coord-x, #coord-y { font-family:var(--mono); }
+
+/* ─── LOADER ─────────────────────────────────── */
+#loader {
+  position:fixed; inset:0; background:var(--ink);
+  z-index:10000; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:24px;
+  transition:opacity 1.2s ease, visibility 1.2s ease;
+}
+#loader.hide { opacity:0; visibility:hidden; }
+.loader-title {
+  font-family:var(--mono); font-size:clamp(13px,2vw,18px);
+  letter-spacing:.5em; color:#f2efe8; text-transform:uppercase;
+}
+.loader-bar-wrap {
+  width:240px; height:1px; background:rgba(242,239,232,.15); position:relative;
+}
+.loader-bar {
+  position:absolute; left:0; top:0; height:100%;
+  background:var(--gold); width:0;
+  animation: loadfill 2.4s ease forwards;
+}
+.loader-pct {
+  font-family:var(--mono); font-size:11px;
+  color:rgba(242,239,232,.4); letter-spacing:.3em;
+  animation: countup 2.4s ease forwards;
+}
+@keyframes loadfill { to { width:100%; } }
+.loader-sub { font-size:10px; letter-spacing:.3em; color:rgba(242,239,232,.25); }
+
+/* ─── NAV ────────────────────────────────────── */
+nav {
+  position:fixed; top:0; left:0; right:0; z-index:100;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:20px 40px;
+  background:rgba(242,239,232,.92);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid rgba(26,58,92,.1);
+}
+.nav-logo { display:flex; flex-direction:column; gap:2px; text-decoration:none; }
+.nav-logo-main { font-family:var(--mono); font-size:14px; letter-spacing:.25em; color:var(--blue); font-weight:400; }
+.nav-logo-sub  { font-family:var(--mono); font-size:9px;  letter-spacing:.4em;  color:var(--gold); }
+.nav-links { display:flex; gap:36px; list-style:none; }
+.nav-links a {
+  font-family:var(--mono); font-size:10px; letter-spacing:.25em;
+  text-transform:uppercase; color:var(--dim); text-decoration:none;
+  position:relative; transition:color .3s;
+}
+.nav-links a::after {
+  content:''; position:absolute; bottom:-3px; left:0;
+  width:0; height:1px; background:var(--blue);
+  transition:width .3s;
+}
+.nav-links a:hover { color:var(--blue); }
+.nav-links a:hover::after { width:100%; }
+.nav-cta {
+  font-family:var(--mono); font-size:10px; letter-spacing:.25em;
+  text-transform:uppercase; color:var(--blue);
+  border:1px solid var(--blue); padding:9px 20px;
+  text-decoration:none; transition:all .3s;
+}
+.nav-cta:hover { background:var(--blue); color:var(--paper); }
+.nav-scale { font-family:var(--mono); font-size:9px; color:var(--dim); letter-spacing:.2em; }
+
+/* ─── HERO ───────────────────────────────────── */
+#hero {
+  position:relative; z-index:1;
+  min-height:100vh;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  align-items:end;
+  padding:120px 40px 80px;
+  gap:40px;
+}
+.hero-annotation {
+  position:absolute; font-family:var(--mono);
+  font-size:9px; color:var(--dim); letter-spacing:.2em;
+  pointer-events:none;
+}
+.hero-annotation.top-mid {
+  top:100px; left:50%;
+  transform:translateX(-50%);
+  white-space:nowrap;
+}
+.hero-annotation.right-mid {
+  right:40px; top:50%;
+  transform:translateY(-50%) rotate(90deg);
+  transform-origin:right center;
+}
+/* dimension lines */
+.dim-line {
+  position:absolute; background:var(--dim);
+  pointer-events:none;
+}
+.dim-line.h { height:1px; }
+.dim-line.v { width:1px; }
+.dim-line::before, .dim-line::after {
+  content:''; position:absolute;
+  background:var(--dim);
+}
+.dim-line.h::before { left:0; top:-4px; width:1px; height:8px; }
+.dim-line.h::after  { right:0; top:-4px; width:1px; height:8px; }
+.dim-line.v::before { top:0; left:-4px; width:8px; height:1px; }
+.dim-line.v::after  { bottom:0; left:-4px; width:8px; height:1px; }
+
+.hero-left { position:relative; }
+.hero-ref {
+  font-family:var(--mono); font-size:9px;
+  letter-spacing:.3em; color:var(--gold);
+  margin-bottom:20px;
+  opacity:0; animation: fadeup .8s ease 3s forwards;
+}
+.hero-title {
+  font-family:var(--serif); font-size:clamp(52px,8vw,112px);
+  font-weight:300; line-height:.92; color:var(--blue);
+  opacity:0; animation: fadeup .8s ease 3.1s forwards;
+}
+.hero-title em { font-style:italic; color:var(--gold); }
+.hero-title .indent { padding-left:clamp(40px,8vw,100px); }
+.hero-callout {
+  margin-top:32px;
+  display:flex; align-items:center; gap:16px;
+  opacity:0; animation: fadeup .8s ease 3.3s forwards;
+}
+.hero-callout-line { flex:1; max-width:60px; height:1px; background:var(--blue); opacity:.3; }
+.hero-callout p {
+  font-family:var(--mono); font-size:10px;
+  letter-spacing:.18em; color:var(--dim); line-height:1.9;
+  max-width:280px;
+}
+.hero-cta-row {
+  display:flex; gap:16px; margin-top:40px;
+  opacity:0; animation: fadeup .8s ease 3.5s forwards;
+}
+.btn-primary {
+  font-family:var(--mono); font-size:10px; letter-spacing:.25em;
+  text-transform:uppercase; background:var(--blue); color:var(--paper);
+  padding:14px 32px; text-decoration:none; transition:all .3s;
+  position:relative; overflow:hidden;
+}
+.btn-primary::after {
+  content:''; position:absolute; inset:0;
+  background:var(--gold); transform:translateX(-100%); transition:transform .4s ease;
+}
+.btn-primary:hover::after { transform:translateX(0); }
+.btn-primary span { position:relative; z-index:1; }
+.btn-secondary {
+  font-family:var(--mono); font-size:10px; letter-spacing:.25em;
+  text-transform:uppercase; background:transparent; color:var(--blue);
+  padding:14px 32px; text-decoration:none; border:1px solid var(--blue);
+  transition:all .3s;
+}
+.btn-secondary:hover { background:var(--blue); color:var(--paper); }
+
+/* 3D canvas in hero */
+.hero-right {
+  position:relative; z-index:1;
+  opacity:0; animation: fadeup .8s ease 3.2s forwards;
+}
+#hero-canvas {
+  width:100%; aspect-ratio:1;
+  max-width:560px;
+  border:1px solid rgba(26,58,92,.15);
+  display:block;
+}
+.canvas-annotation {
+  font-family:var(--mono); font-size:9px;
+  color:var(--dim); letter-spacing:.2em;
+  margin-top:8px; text-align:center;
+}
+
+@keyframes fadeup {
+  from { opacity:0; transform:translateY(28px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
+/* ─── TICKER ─────────────────────────────────── */
+.ticker {
+  position:relative; z-index:1;
+  border-top:1px solid rgba(26,58,92,.12);
+  border-bottom:1px solid rgba(26,58,92,.12);
+  padding:12px 0; overflow:hidden;
+  background:rgba(242,239,232,.7); backdrop-filter:blur(8px);
+}
+.ticker-track {
+  display:flex; white-space:nowrap;
+  animation:ticker 22s linear infinite;
+}
+.ticker-item {
+  font-family:var(--mono); font-size:10px;
+  letter-spacing:.3em; color:var(--dim);
+  padding:0 32px; flex-shrink:0;
+}
+.ticker-item .sep { color:var(--gold); margin:0 8px; }
+@keyframes ticker { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+
+/* ─── SECTION SHELL ──────────────────────────── */
+section { position:relative; z-index:1; padding:120px 40px; }
+
+.sec-label {
+  font-family:var(--mono); font-size:9px;
+  letter-spacing:.4em; text-transform:uppercase;
+  color:var(--gold); margin-bottom:12px;
+  display:flex; align-items:center; gap:12px;
+}
+.sec-label::before { content:''; width:24px; height:1px; background:var(--gold); }
+.sec-label .ref { color:var(--dim); }
+
+.sec-title {
+  font-family:var(--serif); font-size:clamp(36px,5vw,72px);
+  font-weight:300; line-height:1.05; color:var(--blue);
+}
+.sec-title em { font-style:italic; color:var(--gold); }
+
+/* ─── ABOUT ──────────────────────────────────── */
+#about {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:80px; align-items:center;
+}
+.about-body { font-family:var(--mono); font-size:12px; color:var(--dim); line-height:2.1; margin-top:24px; }
+.about-body + .about-body { margin-top:16px; }
+.stats-row { display:flex; gap:0; margin-top:48px; border-top:1px solid rgba(26,58,92,.12); }
+.stat {
+  flex:1; padding:24px 0; border-right:1px solid rgba(26,58,92,.12);
+  text-align:center;
+}
+.stat:last-child { border-right:none; }
+.stat-n {
+  font-family:var(--serif); font-size:52px; font-weight:300;
+  color:var(--blue); line-height:1;
+}
+.stat-l { font-family:var(--mono); font-size:9px; letter-spacing:.25em; color:var(--dim); margin-top:6px; }
+
+/* Blueprint room visual */
+.about-drawing {
+  border:1px solid rgba(26,58,92,.2);
+  position:relative; aspect-ratio:1;
+  background:rgba(242,239,232,.5);
+  overflow:hidden;
+}
+.about-drawing::before {
+  content:'FLOOR PLAN — UNIT A'; position:absolute;
+  top:12px; left:0; right:0; text-align:center;
+  font-family:var(--mono); font-size:9px; letter-spacing:.3em; color:var(--dim);
+}
+.floor-plan { padding:40px; height:100%; position:relative; }
+.fp-room {
+  position:absolute; border:1.5px solid rgba(26,58,92,.4);
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--mono); font-size:8px; letter-spacing:.15em; color:var(--dim);
+  transition:background .3s, border-color .3s;
+}
+.fp-room:hover { background:rgba(184,146,74,.08); border-color:var(--gold); }
+.fp-r1  { top:15%; left:10%; width:40%; height:40%; }
+.fp-r2  { top:15%; left:52%; width:38%; height:28%; }
+.fp-r3  { top:45%; left:52%; width:38%; height:40%; }
+.fp-r4  { top:57%; left:10%; width:40%; height:28%; }
+.fp-door { position:absolute; background:var(--paper); }
+.fp-door.h { height:3px; }
+.fp-door.v { width:3px; }
+.fp-arc {
+  position:absolute; border:1px solid rgba(26,58,92,.25);
+  border-radius:0 0 100% 0; border-top:none; border-left:none;
+  pointer-events:none;
+}
+.fp-dim {
+  position:absolute; font-family:var(--mono);
+  font-size:7px; color:rgba(26,58,92,.4); letter-spacing:.1em;
+}
+
+/* ─── SERVICES ───────────────────────────────── */
+#services { background:rgba(26,58,92,.03); }
+.services-grid {
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:1px;
+  margin-top:60px;
+  border:1px solid rgba(26,58,92,.1);
+}
+.svc {
+  background:var(--paper); padding:44px 36px;
+  border:none; position:relative;
+  overflow:hidden; transition:background .4s;
+  cursor:pointer;
+}
+.svc::after {
+  content:''; position:absolute;
+  left:0; bottom:0; right:0; height:2px;
+  background:var(--gold); transform:scaleX(0);
+  transform-origin:left; transition:transform .4s ease;
+}
+.svc:hover::after { transform:scaleX(1); }
+.svc:hover { background:rgba(26,58,92,.02); }
+.svc-num {
+  font-family:var(--mono); font-size:10px; letter-spacing:.3em;
+  color:var(--gold); margin-bottom:28px;
+}
+.svc-icon {
+  width:36px; height:36px; border:1px solid rgba(26,58,92,.2);
+  display:flex; align-items:center; justify-content:center;
+  font-size:16px; margin-bottom:20px;
+  transition:background .3s, border-color .3s;
+}
+.svc:hover .svc-icon { background:var(--blue); border-color:var(--blue); filter:brightness(10); }
+.svc-name {
+  font-family:var(--serif); font-size:24px; font-weight:400;
+  color:var(--blue); margin-bottom:12px; line-height:1.2;
+}
+.svc-desc {
+  font-family:var(--mono); font-size:11px; color:var(--dim);
+  line-height:1.9;
+}
+.svc-arrow {
+  position:absolute; bottom:36px; right:36px;
+  font-size:16px; color:var(--gold);
+  opacity:0; transform:translateX(-8px);
+  transition:all .3s;
+}
+.svc:hover .svc-arrow { opacity:1; transform:translateX(0); }
+
+/* ─── PROCESS ────────────────────────────────── */
+.process-steps {
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:0;
+  margin-top:60px;
+  position:relative;
+}
+.process-steps::before {
+  content:''; position:absolute;
+  top:18px; left:10%; right:10%;
+  height:1px; background:rgba(26,58,92,.15);
+}
+.proc-step { padding:48px 20px 0; position:relative; text-align:left; }
+.proc-dot {
+  position:absolute; top:12px; left:0;
+  width:13px; height:13px;
+  border:1.5px solid var(--blue); background:var(--paper);
+  border-radius:50%;
+  transition:background .3s;
+}
+.proc-step:hover .proc-dot { background:var(--gold); border-color:var(--gold); }
+.proc-num {
+  font-family:var(--mono); font-size:9px;
+  letter-spacing:.3em; color:var(--gold); margin-bottom:10px;
+}
+.proc-name {
+  font-family:var(--serif); font-size:20px;
+  font-weight:400; color:var(--blue); margin-bottom:10px;
+}
+.proc-desc {
+  font-family:var(--mono); font-size:10px;
+  color:var(--dim); line-height:1.9;
+}
+
+/* ─── PROJECTS ───────────────────────────────── */
+.projects-grid {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  grid-template-rows:auto auto;
+  gap:16px; margin-top:60px;
+}
+.proj {
+  border:1px solid rgba(26,58,92,.12);
+  overflow:hidden; position:relative;
+  cursor:pointer; background:rgba(242,239,232,.5);
+  transition:border-color .4s;
+}
+.proj:hover { border-color:var(--gold); }
+.proj.featured { grid-row:span 2; }
+.proj-visual {
+  height:280px; position:relative; overflow:hidden;
+  background:#ddd9d0;
+  display:flex; align-items:center; justify-content:center;
+}
+.proj.featured .proj-visual { height:100%; min-height:520px; }
+
+/* Blueprint-style project illustrations */
+.bp-scene { width:100%; height:100%; position:relative; overflow:hidden; background:#e8e4da; }
+.bp-scene svg { position:absolute; inset:0; width:100%; height:100%; }
+
+.proj-overlay {
+  position:absolute; inset:0; background:rgba(10,14,18,.0);
+  transition:background .4s; display:flex;
+  align-items:flex-end; padding:24px;
+}
+.proj:hover .proj-overlay { background:rgba(10,14,18,.04); }
+.proj-info {
+  width:100%; padding:20px 24px;
+  border-top:1px solid rgba(26,58,92,.1);
+  display:flex; justify-content:space-between; align-items:flex-end;
+}
+.proj-tag {
+  font-family:var(--mono); font-size:9px;
+  letter-spacing:.25em; color:var(--gold); margin-bottom:6px;
+}
+.proj-name {
+  font-family:var(--serif); font-size:20px;
+  font-weight:400; color:var(--blue);
+}
+.proj-link {
+  width:36px; height:36px; border:1px solid rgba(26,58,92,.2);
+  display:flex; align-items:center; justify-content:center;
+  font-size:14px; color:var(--blue); transition:all .3s; flex-shrink:0;
+}
+.proj:hover .proj-link { background:var(--blue); color:var(--paper); border-color:var(--blue); }
+
+/* ─── TESTIMONIALS ───────────────────────────── */
+#testimonials { background:var(--blue); }
+#testimonials .sec-label { color:rgba(184,146,74,.8); }
+#testimonials .sec-label::before { background:rgba(184,146,74,.8); }
+#testimonials .sec-title { color:var(--paper); }
+.testi-wrap { margin-top:60px; overflow:hidden; }
+.testi-track { display:flex; transition:transform .7s cubic-bezier(.25,.46,.45,.94); }
+.testi-card {
+  min-width:100%; padding:64px 0 0;
+  position:relative;
+}
+.testi-quote {
+  font-family:var(--serif);
+  font-size:clamp(22px,3vw,40px);
+  font-style:italic; font-weight:300;
+  color:var(--paper); line-height:1.5;
+  max-width:720px;
+  position:relative;
+}
+.testi-quote::before {
+  content:'"'; font-size:160px; font-family:var(--serif);
+  color:rgba(242,239,232,.06); position:absolute;
+  top:-40px; left:-16px; line-height:1;
+}
+.testi-author { margin-top:36px; display:flex; align-items:center; gap:16px; }
+.testi-av {
+  width:44px; height:44px; background:var(--gold);
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--serif); font-size:20px; color:var(--ink);
+}
+.testi-name { font-family:var(--mono); font-size:12px; color:var(--paper); }
+.testi-role { font-family:var(--mono); font-size:10px; color:rgba(242,239,232,.4); letter-spacing:.1em; }
+.testi-dots { display:flex; gap:10px; margin-top:48px; }
+.tdot {
+  height:1px; width:32px; background:rgba(242,239,232,.2);
+  border:none; cursor:pointer; padding:0; transition:all .3s;
+}
+.tdot.on { background:var(--gold); width:56px; }
+
+/* ─── CONTACT ────────────────────────────────── */
+#contact { display:grid; grid-template-columns:1fr 1fr; gap:80px; align-items:start; }
+.contact-title { font-family:var(--serif); font-size:clamp(44px,6vw,88px); font-weight:300; line-height:1; color:var(--blue); }
+.contact-title em { font-style:italic; color:var(--gold); }
+.contact-details { margin-top:48px; display:flex; flex-direction:column; gap:24px; }
+.c-item-label { font-family:var(--mono); font-size:9px; letter-spacing:.3em; color:var(--gold); margin-bottom:4px; }
+.c-item-val { font-family:var(--mono); font-size:12px; color:var(--blue); }
+.contact-form { display:flex; flex-direction:column; gap:28px; padding-top:48px; }
+.f-group { position:relative; border-bottom:1px solid rgba(26,58,92,.2); }
+.f-input {
+  width:100%; background:transparent; border:none;
+  padding:16px 0; color:var(--blue);
+  font-family:var(--mono); font-size:12px; outline:none;
+  transition:border-color .3s;
+}
+.f-input::placeholder { color:transparent; }
+.f-label {
+  position:absolute; top:16px; left:0;
+  font-family:var(--mono); font-size:10px; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--dim);
+  transition:all .3s; pointer-events:none;
+}
+.f-input:focus ~ .f-label,
+.f-input:not(:placeholder-shown) ~ .f-label {
+  top:-2px; font-size:8px; color:var(--gold);
+}
+.f-group::after {
+  content:''; position:absolute; bottom:-1px; left:0;
+  width:0; height:1px; background:var(--blue);
+  transition:width .4s;
+}
+.f-group:focus-within::after { width:100%; }
+.f-submit {
+  font-family:var(--mono); font-size:10px; letter-spacing:.3em;
+  text-transform:uppercase; background:var(--blue); color:var(--paper);
+  border:none; padding:16px 36px; cursor:pointer;
+  align-self:flex-start; position:relative; overflow:hidden;
+  transition:all .3s;
+}
+.f-submit::after {
+  content:''; position:absolute; inset:0;
+  background:var(--gold); transform:translateX(-100%); transition:transform .4s;
+}
+.f-submit:hover::after { transform:translateX(0); }
+.f-submit span { position:relative; z-index:1; }
+
+/* ─── FOOTER ─────────────────────────────────── */
+footer {
+  position:relative; z-index:1;
+  border-top:1px solid rgba(26,58,92,.12);
+  padding:32px 40px;
+  display:flex; justify-content:space-between; align-items:center;
+  background:rgba(242,239,232,.95);
+  font-family:var(--mono); font-size:9px; letter-spacing:.2em; color:var(--dim);
+}
+.footer-logo { font-size:12px; letter-spacing:.3em; color:var(--blue); }
+.footer-right { display:flex; gap:24px; align-items:center; }
+.soc { color:var(--dim); text-decoration:none; letter-spacing:.2em; transition:color .3s; }
+.soc:hover { color:var(--blue); }
+
+/* ─── REVEAL ─────────────────────────────────── */
+.reveal { opacity:0; transform:translateY(32px); transition:opacity .9s ease, transform .9s ease; }
+.reveal.on  { opacity:1; transform:translateY(0); }
+.d1 { transition-delay:.1s; } .d2 { transition-delay:.2s; }
+.d3 { transition-delay:.3s; } .d4 { transition-delay:.4s; }
+.d5 { transition-delay:.5s; }
+
+/* ─── MOBILE ─────────────────────────────────── */
+@media(max-width:900px){
+  nav { padding:16px 20px; }
+  .nav-links,.nav-cta,.nav-scale { display:none; }
+  #hero { grid-template-columns:1fr; padding:100px 20px 60px; }
+  .hero-right { display:none; }
+  #about { grid-template-columns:1fr; padding:80px 20px; gap:48px; }
+  #services { padding:80px 20px; }
+  .services-grid { grid-template-columns:1fr; }
+  #process { padding:80px 20px; }
+  .process-steps { grid-template-columns:1fr 1fr; }
+  #projects { padding:80px 20px; }
+  .projects-grid { grid-template-columns:1fr; }
+  .proj.featured { grid-row:auto; }
+  #testimonials { padding:80px 20px; }
+  #contact { grid-template-columns:1fr; padding:80px 20px; }
+  footer { flex-direction:column; gap:16px; text-align:center; padding:24px 20px; }
+  .hud { display:none; }
+}
+</style>
+</head>
+<body>
+
+<!-- CURSOR (crosshair style matching blueprint) -->
+<div id="cur"></div>
+<div id="cur-cross-h"></div>
+<div id="cur-cross-v"></div>
+
+<!-- HUD CORNERS -->
+<div class="hud hud-tl">
+  <div><span class="label">STUDIO</span> v.02</div>
+  <div>RAY DESIGN &amp; BUILD</div>
+  <div>©2025 ARCHDUO</div>
+</div>
+<div class="hud hud-tr">
+  <div>X: <span id="coord-x">000</span> &nbsp; Y: <span id="coord-y">000</span></div>
+  <div>Scale 1:50</div>
+  <div>DWG NO. RDB-WEB-001</div>
+</div>
+<div class="hud hud-bl">
+  <div>Architecture • Interior • Execution</div>
+  <div><span class="label">STATUS</span> LIVE</div>
+</div>
+<div class="hud hud-br">
+  <div>raydesignbuild.in</div>
+  <div><span class="label">@</span>TheArchDuo</div>
+</div>
+
+<!-- LOADER -->
+<div id="loader">
+  <div class="loader-sub">RAY DESIGN &amp; BUILD | ARCHDUO</div>
+  <div class="loader-title">Loading Studio v.02</div>
+  <div class="loader-bar-wrap"><div class="loader-bar"></div></div>
+  <div class="loader-sub" id="loader-pct">000%</div>
+</div>
+
+<!-- THREE.JS BG (faint floating geometry) -->
+<canvas id="bg-canvas"></canvas>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo">
+    <span class="nav-logo-main">RAY DESIGN &amp; BUILD</span>
+    <span class="nav-logo-sub">by ARCHDUO</span>
+  </a>
+  <div class="nav-scale">Scale 1:50 &nbsp;|&nbsp; DWG RDB-001</div>
+  <ul class="nav-links">
+    <li><a href="#about">Studio</a></li>
+    <li><a href="#services">Services</a></li>
+    <li><a href="#projects">Projects</a></li>
+    <li><a href="#contact">Contact</a></li>
+  </ul>
+  <a href="#contact" class="nav-cta">Project Inquiry</a>
+</nav>
+
+<!-- ═══ HERO ═══ -->
+<section id="hero">
+  <!-- dimension annotations -->
+  <div class="hero-annotation top-mid">— ELEVATION NORTH — SHEET 01/06 —</div>
+  <div class="hero-annotation right-mid">┤ SECTION A-A ├</div>
+
+  <div class="hero-left">
+    <div class="hero-ref">DWG REF: RDB-HRO-001 &nbsp;/&nbsp; REV.02</div>
+    <h1 class="hero-title">
+      <span>Where</span><br>
+      <span class="indent">Space</span><br>
+      <em>Becomes</em><br>
+      <span class="indent">Art.</span>
+    </h1>
+    <div class="hero-callout">
+      <div class="hero-callout-line"></div>
+      <p>RAY DESIGN & BUILD crafts interiors that breathe intention — every corner purposeful, every surface considered.</p>
+    </div>
+    <div class="hero-cta-row">
+      <a href="#contact" class="btn-primary"><span>Start a Project →</span></a>
+      <a href="#projects" class="btn-secondary">View Work</a>
+    </div>
+  </div>
+
+  <div class="hero-right">
+    <canvas id="hero-canvas"></canvas>
+    <div class="canvas-annotation">[ 3D AXONOMETRIC — CONCEPT VOLUME — ARCHDUO ]</div>
+  </div>
+</section>
+
+<!-- TICKER -->
+<div class="ticker">
+  <div class="ticker-track" id="tickerTrack"></div>
+</div>
+
+<!-- ═══ ABOUT ═══ -->
+<section id="about">
+  <div class="reveal">
+    <div class="sec-label">Studio Profile <span class="ref">// DOC-ABT-001</span></div>
+    <h2 class="sec-title">Crafted with<br><em>Purpose</em></h2>
+    <p class="about-body">ARCHDUO is a creative architecture duo — two minds with one obsession: spaces that make people feel something. From the first sketch to the final coat of paint, we inhabit every project fully.</p>
+    <p class="about-body">Our work spans luxury residences, modular kitchens, bespoke furniture, and complete interior transformations across India.</p>
+    <div class="stats-row">
+      <div class="stat"><div class="stat-n" data-count="120">0</div><div class="stat-l">Projects</div></div>
+      <div class="stat"><div class="stat-n" data-count="8">0</div><div class="stat-l">Years</div></div>
+      <div class="stat"><div class="stat-n" data-count="98">0</div><div class="stat-l">Client %</div></div>
+    </div>
+  </div>
+
+  <!-- Floor Plan Drawing -->
+  <div class="about-drawing reveal d2">
+    <div class="floor-plan">
+      <!-- rooms -->
+      <div class="fp-room fp-r1">LIVING</div>
+      <div class="fp-room fp-r2">KITCHEN</div>
+      <div class="fp-room fp-r3">MASTER<br>BED</div>
+      <div class="fp-room fp-r4">BED 2</div>
+      <!-- dimension annotations -->
+      <div class="fp-dim" style="top:8%;left:10%">←— 4800 —→</div>
+      <div class="fp-dim" style="top:8%;left:52%">←— 3600 —→</div>
+      <div class="fp-dim" style="top:15%;left:2%;writing-mode:vertical-rl">↑ 3600 ↓</div>
+      <div class="fp-dim" style="bottom:4%;left:38%">SCALE 1:50</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ SERVICES ═══ -->
+<section id="services">
+  <div class="reveal">
+    <div class="sec-label">Capabilities <span class="ref">// DOC-SVC-001</span></div>
+    <h2 class="sec-title">Our <em>Services</em></h2>
+  </div>
+  <div class="services-grid">
+    <div class="svc reveal"><div class="svc-num">SVC — 01</div><div class="svc-icon">🏛</div><h3 class="svc-name">Interior Design</h3><p class="svc-desc">End-to-end interior solutions from concept to execution. Every room a curated, considered experience.</p><div class="svc-arrow">→</div></div>
+    <div class="svc reveal d1"><div class="svc-num">SVC — 02</div><div class="svc-icon">🪵</div><h3 class="svc-name">Modular Kitchens</h3><p class="svc-desc">Custom kitchens built around your life. Premium hardware, intelligent storage, refined finishes.</p><div class="svc-arrow">→</div></div>
+    <div class="svc reveal d2"><div class="svc-num">SVC — 03</div><div class="svc-icon">🛋</div><h3 class="svc-name">Bespoke Furniture</h3><p class="svc-desc">Furniture designed around you — your space, your habits, your aesthetic. One piece or a full set.</p><div class="svc-arrow">→</div></div>
+    <div class="svc reveal d1"><div class="svc-num">SVC — 04</div><div class="svc-icon">🏗</div><h3 class="svc-name">Project Execution</h3><p class="svc-desc">Full contractor management, site supervision, and quality control. On time. On budget.</p><div class="svc-arrow">→</div></div>
+    <div class="svc reveal d2"><div class="svc-num">SVC — 05</div><div class="svc-icon">📐</div><h3 class="svc-name">Space Planning</h3><p class="svc-desc">Intelligent layouts that activate every square foot. We don't fill space — we unlock it.</p><div class="svc-arrow">→</div></div>
+    <div class="svc reveal d3"><div class="svc-num">SVC — 06</div><div class="svc-icon">💡</div><h3 class="svc-name">Lighting Design</h3><p class="svc-desc">Light is architecture's invisible layer. Ambiance, depth, and drama — designed to transform.</p><div class="svc-arrow">→</div></div>
+  </div>
+</section>
+
+<!-- ═══ PROCESS ═══ -->
+<section id="process">
+  <div class="reveal">
+    <div class="sec-label">Workflow <span class="ref">// DOC-PRO-001</span></div>
+    <h2 class="sec-title">The <em>Process</em></h2>
+  </div>
+  <div class="process-steps">
+    <div class="proc-step reveal"><div class="proc-dot"></div><div class="proc-num">STEP — 01</div><div class="proc-name">Discovery</div><p class="proc-desc">We listen first. Understanding your vision and lifestyle before a line is drawn.</p></div>
+    <div class="proc-step reveal d1"><div class="proc-dot"></div><div class="proc-num">STEP — 02</div><div class="proc-name">Concept</div><p class="proc-desc">Mood boards, 3D renders, and material palettes. Your future space on screen.</p></div>
+    <div class="proc-step reveal d2"><div class="proc-dot"></div><div class="proc-num">STEP — 03</div><div class="proc-name">Design</div><p class="proc-desc">Technical drawings, BOQs, vendor selection. The blueprint, down to the millimeter.</p></div>
+    <div class="proc-step reveal d3"><div class="proc-dot"></div><div class="proc-num">STEP — 04</div><div class="proc-name">Execute</div><p class="proc-desc">Site management, quality checks, milestone reviews. We handle it all.</p></div>
+    <div class="proc-step reveal d4"><div class="proc-dot"></div><div class="proc-num">STEP — 05</div><div class="proc-name">Handover</div><p class="proc-desc">A walkthrough, a deep clean, and the keys to your transformed space.</p></div>
+  </div>
+</section>
+
+<!-- ═══ PROJECTS ═══ -->
+<section id="projects">
+  <div class="reveal" style="display:flex;justify-content:space-between;align-items:flex-end">
+    <div>
+      <div class="sec-label">Portfolio <span class="ref">// DOC-PRJ-001</span></div>
+      <h2 class="sec-title">Selected <em>Projects</em></h2>
+    </div>
+    <a href="#contact" class="btn-secondary" style="margin-bottom:8px">All Projects</a>
+  </div>
+  <div class="projects-grid">
+
+    <div class="proj featured reveal">
+      <div class="proj-visual">
+        <div class="bp-scene">
+          <svg viewBox="0 0 500 600" preserveAspectRatio="xMidYMid slice">
+            <rect width="500" height="600" fill="#ddd9d0"/>
+            <!-- grid -->
+            <g stroke="rgba(26,58,92,.08)" stroke-width=".5">
+              <line x1="0" y1="60" x2="500" y2="60"/><line x1="0" y1="120" x2="500" y2="120"/>
+              <line x1="0" y1="180" x2="500" y2="180"/><line x1="0" y1="240" x2="500" y2="240"/>
+              <line x1="0" y1="300" x2="500" y2="300"/><line x1="0" y1="360" x2="500" y2="360"/>
+              <line x1="0" y1="420" x2="500" y2="420"/><line x1="0" y1="480" x2="500" y2="480"/>
+              <line x1="0" y1="540" x2="500" y2="540"/>
+              <line x1="60" y1="0" x2="60" y2="600"/><line x1="120" y1="0" x2="120" y2="600"/>
+              <line x1="180" y1="0" x2="180" y2="600"/><line x1="240" y1="0" x2="240" y2="600"/>
+              <line x1="300" y1="0" x2="300" y2="600"/><line x1="360" y1="0" x2="360" y2="600"/>
+              <line x1="420" y1="0" x2="420" y2="600"/><line x1="480" y1="0" x2="480" y2="600"/>
+            </g>
+            <!-- elevation drawing - living room -->
+            <rect x="40" y="80" width="420" height="460" fill="rgba(26,58,92,.03)" stroke="rgba(26,58,92,.3)" stroke-width="1.5"/>
+            <!-- floor line -->
+            <line x1="40" y1="480" x2="460" y2="480" stroke="rgba(26,58,92,.5)" stroke-width="2"/>
+            <!-- wall panel lines -->
+            <line x1="40" y1="80" x2="40" y2="480" stroke="rgba(26,58,92,.4)" stroke-width="1.5"/>
+            <line x1="460" y1="80" x2="460" y2="480" stroke="rgba(26,58,92,.4)" stroke-width="1.5"/>
+            <!-- ceiling line -->
+            <line x1="40" y1="80" x2="460" y2="80" stroke="rgba(26,58,92,.4)" stroke-width="1.5"/>
+            <!-- sofa -->
+            <rect x="120" y="400" width="260" height="70" fill="rgba(26,58,92,.07)" stroke="rgba(26,58,92,.3)" stroke-width="1"/>
+            <rect x="120" y="390" width="260" height="20" fill="rgba(26,58,92,.1)" stroke="rgba(26,58,92,.3)" stroke-width="1"/>
+            <rect x="120" y="400" width="20" height="70" fill="rgba(26,58,92,.12)" stroke="rgba(26,58,92,.2)" stroke-width="1"/>
+            <rect x="360" y="400" width="20" height="70" fill="rgba(26,58,92,.12)" stroke="rgba(26,58,92,.2)" stroke-width="1"/>
+            <!-- coffee table -->
+            <rect x="185" y="350" width="130" height="40" fill="rgba(184,146,74,.12)" stroke="rgba(184,146,74,.4)" stroke-width="1"/>
+            <!-- window -->
+            <rect x="170" y="110" width="160" height="180" fill="rgba(26,58,92,.04)" stroke="rgba(26,58,92,.3)" stroke-width="1.5"/>
+            <line x1="250" y1="110" x2="250" y2="290" stroke="rgba(26,58,92,.2)" stroke-width="1"/>
+            <line x1="170" y1="200" x2="330" y2="200" stroke="rgba(26,58,92,.2)" stroke-width="1"/>
+            <!-- wall art -->
+            <rect x="70" y="140" width="70" height="90" fill="rgba(184,146,74,.08)" stroke="rgba(184,146,74,.3)" stroke-width="1"/>
+            <rect x="390" y="140" width="50" height="70" fill="rgba(26,58,92,.06)" stroke="rgba(26,58,92,.2)" stroke-width="1"/>
+            <!-- floor lamp -->
+            <line x1="90" y1="320" x2="90" y2="480" stroke="rgba(26,58,92,.3)" stroke-width="1.5"/>
+            <ellipse cx="90" cy="315" rx="20" ry="10" fill="none" stroke="rgba(26,58,92,.3)" stroke-width="1"/>
+            <!-- annotations -->
+            <text x="250" y="560" text-anchor="middle" font-family="Share Tech Mono" font-size="9" fill="rgba(26,58,92,.4)" letter-spacing="3">ELEVATION — LIVING ROOM — SCALE 1:50</text>
+            <text x="250" y="575" text-anchor="middle" font-family="Share Tech Mono" font-size="8" fill="rgba(184,146,74,.6)" letter-spacing="2">THE CEDARWOOD RESIDENCE</text>
+            <!-- dim lines -->
+            <line x1="40" y1="510" x2="460" y2="510" stroke="rgba(26,58,92,.2)" stroke-width=".5"/>
+            <line x1="40" y1="505" x2="40" y2="515" stroke="rgba(26,58,92,.2)" stroke-width=".5"/>
+            <line x1="460" y1="505" x2="460" y2="515" stroke="rgba(26,58,92,.2)" stroke-width=".5"/>
+            <text x="250" y="524" text-anchor="middle" font-family="Share Tech Mono" font-size="8" fill="rgba(26,58,92,.35)" letter-spacing="1">6200</text>
+          </svg>
+        </div>
+      </div>
+      <div class="proj-info">
+        <div><div class="proj-tag">Residential · 2024 · Bangalore</div><div class="proj-name">The Cedarwood Residence</div></div>
+        <div class="proj-link">↗</div>
+      </div>
+    </div>
+
+    <div class="proj reveal d1">
+      <div class="proj-visual">
+        <div class="bp-scene">
+          <svg viewBox="0 0 400 280" preserveAspectRatio="xMidYMid slice">
+            <rect width="400" height="280" fill="#ddd9d0"/>
+            <g stroke="rgba(26,58,92,.07)" stroke-width=".5">
+              <line x1="0" y1="40" x2="400" y2="40"/><line x1="0" y1="80" x2="400" y2="80"/>
+              <line x1="0" y1="120" x2="400" y2="120"/><line x1="0" y1="160" x2="400" y2="160"/>
+              <line x1="0" y1="200" x2="400" y2="200"/><line x1="0" y1="240" x2="400" y2="240"/>
+              <line x1="40" y1="0" x2="40" y2="280"/><line x1="80" y1="0" x2="80" y2="280"/>
+              <line x1="120" y1="0" x2="120" y2="280"/><line x1="160" y1="0" x2="160" y2="280"/>
+              <line x1="200" y1="0" x2="200" y2="280"/><line x1="240" y1="0" x2="240" y2="280"/>
+              <line x1="280" y1="0" x2="280" y2="280"/><line x1="320" y1="0" x2="320" y2="280"/>
+              <line x1="360" y1="0" x2="360" y2="280"/>
+            </g>
+            <!-- kitchen elevation -->
+            <rect x="30" y="30" width="340" height="210" fill="rgba(26,58,92,.02)" stroke="rgba(26,58,92,.25)" stroke-width="1"/>
+            <line x1="30" y1="200" x2="370" y2="200" stroke="rgba(26,58,92,.4)" stroke-width="1.5"/>
+            <!-- upper cabinets -->
+            <rect x="30" y="30" width="340" height="80" fill="rgba(26,58,92,.05)" stroke="rgba(26,58,92,.25)" stroke-width="1"/>
+            <line x1="110" y1="30" x2="110" y2="110" stroke="rgba(26,58,92,.2)" stroke-width=".5"/>
+            <line x1="200" y1="30" x2="200" y2="110" stroke="rgba(26,58,92,.2)" stroke-width=".5"/>
+            <line x1="290" y1="30" x2="290" y2="110" stroke="rgba(26,58,92,.2)" stroke-width=".5"/>
+            <!-- lower cabinets -->
+            <rect x="30" y="140" width="340" height="60" fill="rgba(26,58,92,.05)" stroke="rgba(26,58,92,.25)" stroke-width="1"/>
+            <line x1="100" y1="140" x2="100" y2="200" stroke="rgba(26,58,92,.2)" stroke-width=".5"/>
+            <line x1="200" y1="140" x2="200" y2="200" stroke="rgba(26,58,92,.2)" stroke-width=".5"/>
+            <line x1="300" y1="140" x2="300" y2="200" stroke="rgba(26,58,92,.2)" stroke-width=".5"/>
+            <!-- countertop -->
+            <rect x="30" y="132" width="340" height="10" fill="rgba(184,146,74,.15)" stroke="rgba(184,146,74,.4)" stroke-width="1"/>
+            <!-- sink -->
+            <rect x="155" y="115" width="90" height="18" fill="rgba(26,58,92,.08)" stroke="rgba(26,58,92,.3)" stroke-width="1"/>
+            <!-- handles -->
+            <circle cx="65" cy="170" r="3" fill="none" stroke="rgba(184,146,74,.5)" stroke-width="1"/>
+            <circle cx="150" cy="170" r="3" fill="none" stroke="rgba(184,146,74,.5)" stroke-width="1"/>
+            <circle cx="250" cy="170" r="3" fill="none" stroke="rgba(184,146,74,.5)" stroke-width="1"/>
+            <circle cx="335" cy="170" r="3" fill="none" stroke="rgba(184,146,74,.5)" stroke-width="1"/>
+            <text x="200" y="258" text-anchor="middle" font-family="Share Tech Mono" font-size="8" fill="rgba(26,58,92,.35)" letter-spacing="2">KITCHEN ELEVATION — SCALE 1:25</text>
+          </svg>
+        </div>
+      </div>
+      <div class="proj-info">
+        <div><div class="proj-tag">Kitchen · 2024 · Whitefield</div><div class="proj-name">Modular Kitchen — Praveen Residence</div></div>
+        <div class="proj-link">↗</div>
+      </div>
+    </div>
+
+    <div class="proj reveal d2">
+      <div class="proj-visual">
+        <div class="bp-scene">
+          <svg viewBox="0 0 400 280" preserveAspectRatio="xMidYMid slice">
+            <rect width="400" height="280" fill="#ddd9d0"/>
+            <g stroke="rgba(26,58,92,.07)" stroke-width=".5">
+              <line x1="0" y1="40" x2="400" y2="40"/><line x1="0" y1="80" x2="400" y2="80"/>
+              <line x1="0" y1="120" x2="400" y2="120"/><line x1="0" y1="160" x2="400" y2="160"/>
+              <line x1="0" y1="200" x2="400" y2="200"/><line x1="0" y1="240" x2="400" y2="240"/>
+              <line x1="40" y1="0" x2="40" y2="280"/><line x1="80" y1="0" x2="80" y2="280"/>
+              <line x1="120" y1="0" x2="120" y2="280"/><line x1="160" y1="0" x2="160" y2="280"/>
+              <line x1="200" y1="0" x2="200" y2="280"/><line x1="240" y1="0" x2="240" y2="280"/>
+              <line x1="280" y1="0" x2="280" y2="280"/><line x1="320" y1="0" x2="320" y2="280"/>
+              <line x1="360" y1="0" x2="360" y2="280"/>
+            </g>
+            <!-- bedroom elevation -->
+            <rect x="30" y="20" width="340" height="220" fill="rgba(26,58,92,.02)" stroke="rgba(26,58,92,.25)" stroke-width="1"/>
+            <line x1="30" y1="210" x2="370" y2="210" stroke="rgba(26,58,92,.4)" stroke-width="2"/>
+            <!-- bed -->
+            <rect x="100" y="140" width="200" height="70" fill="rgba(26,58,92,.06)" stroke="rgba(26,58,92,.25)" stroke-width="1"/>
+            <rect x="100" y="130" width="200" height="20" fill="rgba(26,58,92,.1)" stroke="rgba(26,58,92,.25)" stroke-width="1"/>
+            <!-- pillows -->
+            <rect x="115" y="133" width="60" height="14" rx="3" fill="rgba(242,239,232,.8)" stroke="rgba(26,58,92,.2)" stroke-width=".5"/>
+            <rect x="225" y="133" width="60" height="14" rx="3" fill="rgba(242,239,232,.8)" stroke="rgba(26,58,92,.2)" stroke-width=".5"/>
+            <!-- side tables -->
+            <rect x="60" y="160" width="38" height="50" fill="rgba(184,146,74,.08)" stroke="rgba(184,146,74,.3)" stroke-width="1"/>
+            <rect x="302" y="160" width="38" height="50" fill="rgba(184,146,74,.08)" stroke="rgba(184,146,74,.3)" stroke-width="1"/>
+            <!-- wall panel / headboard -->
+            <rect x="80" y="50" width="240" height="75" fill="rgba(26,58,92,.04)" stroke="rgba(26,58,92,.2)" stroke-width="1"/>
+            <line x1="200" y1="50" x2="200" y2="125" stroke="rgba(26,58,92,.15)" stroke-width=".5"/>
+            <!-- lamps -->
+            <circle cx="79" cy="158" r="8" fill="none" stroke="rgba(184,146,74,.4)" stroke-width="1"/>
+            <circle cx="321" cy="158" r="8" fill="none" stroke="rgba(184,146,74,.4)" stroke-width="1"/>
+            <text x="200" y="258" text-anchor="middle" font-family="Share Tech Mono" font-size="8" fill="rgba(26,58,92,.35)" letter-spacing="2">BEDROOM ELEVATION — SCALE 1:25</text>
+          </svg>
+        </div>
+      </div>
+      <div class="proj-info">
+        <div><div class="proj-tag">Bedroom · 2024</div><div class="proj-name">2BHK Diaries — Master Suite</div></div>
+        <div class="proj-link">↗</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══ TESTIMONIALS ═══ -->
+<section id="testimonials">
+  <div class="reveal">
+    <div class="sec-label">Client Words <span class="ref" style="color:rgba(242,239,232,.2)">// DOC-TST-001</span></div>
+    <h2 class="sec-title">What They <em>Say</em></h2>
+  </div>
+  <div class="testi-wrap reveal d1">
+    <div class="testi-track" id="testiTrack">
+      <div class="testi-card">
+        <p class="testi-quote">Ray Design & Build didn't just design our home — they designed our life inside it. Every detail felt intentional, and the execution was flawless.</p>
+        <div class="testi-author">
+          <div class="testi-av">P</div>
+          <div><div class="testi-name">Praveen Kumar</div><div class="testi-role">Homeowner · Whitefield, Bangalore</div></div>
+        </div>
+      </div>
+      <div class="testi-card">
+        <p class="testi-quote">The modular kitchen they built is something we show every guest. It is functional art. I never thought a kitchen could feel this beautiful.</p>
+        <div class="testi-author">
+          <div class="testi-av">S</div>
+          <div><div class="testi-name">Shreya Nair</div><div class="testi-role">Client · Indiranagar, Bangalore</div></div>
+        </div>
+      </div>
+      <div class="testi-card">
+        <p class="testi-quote">Working with ARCHDUO was unlike any contractor experience we have had. Transparent, creative, and delivered exactly what they promised — on time.</p>
+        <div class="testi-author">
+          <div class="testi-av">R</div>
+          <div><div class="testi-name">Rohan & Priya Mehta</div><div class="testi-role">Clients · Electronic City</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="testi-dots" id="testiDots"></div>
+  </div>
+</section>
+
+<!-- ═══ CONTACT ═══ -->
+<section id="contact">
+  <div class="reveal">
+    <div class="sec-label">Get in Touch <span class="ref">// DOC-CNT-001</span></div>
+    <h2 class="contact-title">Let's Build<br><em>Together.</em></h2>
+    <div class="contact-details">
+      <div><div class="c-item-label">Email</div><div class="c-item-val"><a href="mailto:info@raydesignbuild.in" style="color:inherit;text-decoration:none">info@raydesignbuild.in</a></div></div>
+      <div><div class="c-item-label">Instagram</div><div class="c-item-val">@TheArchDuo</div></div>
+      <div><div class="c-item-label">Website</div><div class="c-item-val">raydesignbuild.in</div></div>
+      <div><div class="c-item-label">Scope</div><div class="c-item-val">Residential · Commercial · Hospitality</div></div>
+    </div>
+  </div>
+  <div class="contact-form reveal d2">
+    <div class="f-group">
+      <input type="text" class="f-input" placeholder=" " id="fn">
+      <label class="f-label" for="fn">Your Name</label>
+    </div>
+    <div class="f-group">
+      <input type="text" class="f-input" placeholder=" " id="fe">
+      <label class="f-label" for="fe">Email / Phone</label>
+    </div>
+    <div class="f-group">
+      <input type="text" class="f-input" placeholder=" " id="fp">
+      <label class="f-label" for="fp">Project Type</label>
+    </div>
+    <div class="f-group">
+      <input type="text" class="f-input" placeholder=" " id="fm">
+      <label class="f-label" for="fm">Tell us about your vision</label>
+    </div>
+    <button class="f-submit" onclick="submitForm()"><span>Send Inquiry →</span></button>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">RAY DESIGN &amp; BUILD · ARCHDUO</div>
+  <div>DWG NO. RDB-WEB-001 &nbsp;|&nbsp; REV.02 &nbsp;|&nbsp; ©2025</div>
+  <div class="footer-right">
+    <a href="https://instagram.com/TheArchDuo" target="_blank" class="soc">IG</a>
+    <a href="mailto:info@raydesignbuild.in" class="soc">MAIL</a>
+    <span style="color:rgba(26,58,92,.2)">Scale 1:50</span>
+  </div>
+</footer>
+
+<script>
+// ─── LOADER ─────────────────────────────────────────
+let pct = 0;
+const pctEl = document.getElementById('loader-pct');
+const loaderTimer = setInterval(() => {
+  pct = Math.min(pct + Math.random() * 8, 100);
+  pctEl.textContent = String(Math.floor(pct)).padStart(3,'0') + '%';
+  if (pct >= 100) {
+    clearInterval(loaderTimer);
+    setTimeout(() => document.getElementById('loader').classList.add('hide'), 400);
+  }
+}, 80);
+
+// ─── CURSOR (blueprint crosshair) ───────────────────
+const cur = document.getElementById('cur');
+const curH = document.getElementById('cur-cross-h');
+const curV = document.getElementById('cur-cross-v');
+const xEl  = document.getElementById('coord-x');
+const yEl  = document.getElementById('coord-y');
+document.addEventListener('mousemove', e => {
+  cur.style.left = e.clientX + 'px';
+  cur.style.top  = e.clientY + 'px';
+  curH.style.left = (e.clientX - 10) + 'px';
+  curH.style.top  = e.clientY + 'px';
+  curV.style.left = e.clientX + 'px';
+  curV.style.top  = (e.clientY - 10) + 'px';
+  xEl.textContent = String(Math.floor(e.clientX)).padStart(3,'0');
+  yEl.textContent = String(Math.floor(e.clientY)).padStart(3,'0');
+});
+document.querySelectorAll('a,button,.svc,.proj').forEach(el => {
+  el.addEventListener('mouseenter', () => { cur.style.width='16px'; cur.style.height='16px'; });
+  el.addEventListener('mouseleave', () => { cur.style.width='8px';  cur.style.height='8px'; });
+});
+
+// ─── THREE.JS BACKGROUND ────────────────────────────
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ canvas:document.getElementById('bg-canvas'), alpha:true, antialias:true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+camera.position.z = 6;
+
+// Wireframe architectural shapes
+const shapes = [];
+const mats = [
+  new THREE.MeshBasicMaterial({ color:0x1a3a5c, wireframe:true, transparent:true, opacity:.08 }),
+  new THREE.MeshBasicMaterial({ color:0xb8924a, wireframe:true, transparent:true, opacity:.06 }),
+];
+
+[[3,3,3,0,[-5,2,-2]],[2,2,2,1,[5,-2,-3]],[1.5,4,1.5,0,[3,3,-1]],[4,1,4,1,[-3,-3,-2]]].forEach(([w,h,d,mi,pos]) => {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mats[mi]);
+  mesh.position.set(...pos);
+  mesh.rotation.set(Math.random(),Math.random(),Math.random());
+  scene.add(mesh); shapes.push(mesh);
+});
+
+// Floating dots (matching blueprint theme - blue)
+const pts = new THREE.BufferGeometry();
+const pPos = new Float32Array(800*3);
+for(let i=0;i<800;i++){
+  pPos[i*3]=(Math.random()-.5)*22;
+  pPos[i*3+1]=(Math.random()-.5)*22;
+  pPos[i*3+2]=(Math.random()-.5)*10;
+}
+pts.setAttribute('position',new THREE.BufferAttribute(pPos,3));
+const ptMesh = new THREE.Points(pts, new THREE.PointsMaterial({color:0x1a3a5c,size:.025,transparent:true,opacity:.3}));
+scene.add(ptMesh);
+
+let mx=0,my=0,t=0;
+document.addEventListener('mousemove',e=>{mx=(e.clientX/window.innerWidth-.5)*2;my=-(e.clientY/window.innerHeight-.5)*2;});
+(function animate(){
+  requestAnimationFrame(animate); t+=.003;
+  shapes.forEach((s,i)=>{ s.rotation.x+=.002*(i%2?1:-1); s.rotation.y+=.003*(i%2?-1:1); });
+  ptMesh.rotation.y=t*.04;
+  camera.position.x+=(mx*.4-camera.position.x)*.02;
+  camera.position.y+=(my*.3-camera.position.y)*.02;
+  renderer.render(scene,camera);
+})();
+window.addEventListener('resize',()=>{
+  camera.aspect=window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth,window.innerHeight);
+});
+
+// ─── HERO 3D CANVAS (architectural wireframe room) ──
+const hCanvas = document.getElementById('hero-canvas');
+const hScene = new THREE.Scene();
+const hCam = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+const hRend = new THREE.WebGLRenderer({ canvas:hCanvas, alpha:true, antialias:true });
+function resizeHeroCanvas(){
+  const w = hCanvas.clientWidth, h = hCanvas.clientHeight;
+  hRend.setSize(w, h, false);
+  hCam.aspect = w/h;
+  hCam.updateProjectionMatrix();
+}
+resizeHeroCanvas();
+hCam.position.set(4, 3, 5);
+hCam.lookAt(0, 0, 0);
+
+const wMat = new THREE.MeshBasicMaterial({ color:0x1a3a5c, wireframe:true, transparent:true, opacity:.35 });
+const gMat = new THREE.MeshBasicMaterial({ color:0xb8924a, wireframe:true, transparent:true, opacity:.2 });
+
+// Room box
+const roomMesh = new THREE.Mesh(new THREE.BoxGeometry(4,2.8,3.5), wMat.clone());
+hScene.add(roomMesh);
+
+// Floor plane
+const floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(4,3.5,8,8), new THREE.MeshBasicMaterial({color:0x1a3a5c,wireframe:true,transparent:true,opacity:.15}));
+floorMesh.rotation.x=-Math.PI/2; floorMesh.position.y=-1.4;
+hScene.add(floorMesh);
+
+// Furniture wireframes
+const sofaM = new THREE.Mesh(new THREE.BoxGeometry(2.2,.6,.9), gMat.clone());
+sofaM.position.set(-.2,-.8,.8);
+hScene.add(sofaM);
+
+const tableM = new THREE.Mesh(new THREE.BoxGeometry(1.2,.1,.7), gMat.clone());
+tableM.position.set(-.2,-.9,-.2);
+hScene.add(tableM);
+
+const shelfM = new THREE.Mesh(new THREE.BoxGeometry(.3,1.8,.8), wMat.clone());
+shelfM.position.set(-1.7,-.2,-.5);
+hScene.add(shelfM);
+
+// Orbit-like rotation
+let hMouseX=0, hMouseY=0;
+hCanvas.addEventListener('mousemove',e=>{
+  const r=hCanvas.getBoundingClientRect();
+  hMouseX=(e.clientX-r.left)/r.width-.5;
+  hMouseY=(e.clientY-r.top)/r.height-.5;
+});
+let hT=0;
+(function animH(){
+  requestAnimationFrame(animH); hT+=.005;
+  const tx = hMouseX*.6 || Math.sin(hT)*.3;
+  const ty = hMouseY*.4 || Math.cos(hT*.7)*.15;
+  hScene.rotation.y += (tx - hScene.rotation.y)*.04;
+  hScene.rotation.x += (ty - hScene.rotation.x)*.04;
+  hRend.render(hScene,hCam);
+})();
+window.addEventListener('resize', resizeHeroCanvas);
+
+// ─── TICKER ──────────────────────────────────────────
+const tickerItems=['Interior Design','Architecture','Modular Kitchens','Space Planning','Bespoke Furniture','Lighting Design','Project Execution','3D Visualization','Bangalore, India'];
+const tt = document.getElementById('tickerTrack');
+let th='';
+for(let i=0;i<4;i++) tickerItems.forEach(s=>{ th+=`<div class="ticker-item">${s}<span class="sep">✦</span></div>`; });
+tt.innerHTML=th;
+
+// ─── SCROLL REVEAL ───────────────────────────────────
+const revObs = new IntersectionObserver(entries=>{
+  entries.forEach(e=>{ if(e.isIntersecting) e.target.classList.add('on'); });
+},{threshold:.1});
+document.querySelectorAll('.reveal').forEach(el=>revObs.observe(el));
+
+// ─── COUNTERS ────────────────────────────────────────
+const cntObs = new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      const el=e.target, target=+el.dataset.count;
+      let v=0; const step=target/60;
+      const t=setInterval(()=>{ v+=step; if(v>=target){el.textContent=target;clearInterval(t);}else el.textContent=Math.floor(v); },20);
+      cntObs.unobserve(el);
+    }
+  });
+},{threshold:.5});
+document.querySelectorAll('[data-count]').forEach(el=>cntObs.observe(el));
+
+// ─── TESTIMONIAL SLIDER ──────────────────────────────
+let cur2=0;
+const tTrack=document.getElementById('testiTrack');
+const tSlides=tTrack.querySelectorAll('.testi-card');
+const tDots=document.getElementById('testiDots');
+tSlides.forEach((_,i)=>{
+  const b=document.createElement('button');
+  b.className='tdot'+(i===0?' on':'');
+  b.onclick=()=>goSlide(i);
+  tDots.appendChild(b);
+});
+function goSlide(n){
+  cur2=n;
+  tTrack.style.transform=`translateX(-${n*100}%)`;
+  tDots.querySelectorAll('.tdot').forEach((b,i)=>b.classList.toggle('on',i===n));
+}
+setInterval(()=>goSlide((cur2+1)%tSlides.length),5500);
+
+// ─── FORM ────────────────────────────────────────────
+function submitForm(){
+  const n=document.getElementById('fn').value.trim();
+  if(!n){ alert('Please enter your name.'); return; }
+  alert('Thank you '+n+'. We will be in touch soon. — ARCHDUO');
+}
+</script>
+</body>
+</html>
