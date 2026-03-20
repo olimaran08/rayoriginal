@@ -474,6 +474,77 @@ section { position:relative; z-index:1; padding:120px 40px; }
 }
 .proj:hover .proj-link { background:var(--blue); color:var(--paper); border-color:var(--blue); }
 
+/* ─── THE DUO ────────────────────────────────── */
+#duo { background: rgba(26,58,92,.03); }
+.duo-grid {
+  display:grid; grid-template-columns:1fr 1fr;
+  gap:20px; margin-top:60px;
+}
+.duo-card {
+  border:1px solid rgba(26,58,92,.15);
+  background:var(--paper); overflow:hidden;
+  position:relative; transition:border-color .4s;
+}
+.duo-card:hover { border-color:var(--gold); }
+.duo-photo {
+  aspect-ratio:3/4; position:relative;
+  overflow:hidden; background:#ddd9cf;
+}
+.duo-photo img {
+  width:100%; height:100%; object-fit:cover;
+  object-position:top center;
+  transition:transform .7s ease;
+  display:block;
+}
+.duo-card:hover .duo-photo img { transform:scale(1.04); }
+.duo-photo-overlay {
+  position:absolute; inset:0;
+  background:linear-gradient(to top, rgba(26,58,92,.35) 0%, transparent 50%);
+  pointer-events:none;
+}
+.duo-corner { position:absolute; width:18px; height:18px; border-color:var(--gold); border-style:solid; opacity:.6; }
+.duo-corner.tl { top:10px; left:10px; border-width:1px 0 0 1px; }
+.duo-corner.tr { top:10px; right:10px; border-width:1px 1px 0 0; }
+.duo-corner.bl { bottom:10px; left:10px; border-width:0 0 1px 1px; }
+.duo-corner.br { bottom:10px; right:10px; border-width:0 1px 1px 0; }
+.duo-ref {
+  position:absolute; top:12px; left:12px;
+  font-family:var(--mono); font-size:8px;
+  letter-spacing:.2em; color:rgba(242,239,232,.7);
+  background:rgba(26,58,92,.5); padding:3px 8px;
+}
+.duo-info {
+  padding:24px 24px 28px;
+  border-top:1px solid rgba(26,58,92,.1);
+}
+.duo-role {
+  font-family:var(--mono); font-size:9px;
+  letter-spacing:.3em; color:var(--gold); margin-bottom:8px;
+}
+.duo-name {
+  font-family:var(--serif); font-size:28px;
+  font-weight:400; color:var(--blue);
+  margin-bottom:12px; line-height:1.1;
+}
+.duo-bio {
+  font-family:var(--mono); font-size:11px;
+  color:var(--dim); line-height:1.9; margin-bottom:16px;
+}
+.duo-tags { display:flex; gap:8px; flex-wrap:wrap; }
+.duo-tag {
+  font-family:var(--mono); font-size:9px;
+  letter-spacing:.15em; border:1px solid rgba(26,58,92,.2);
+  color:var(--dim); padding:4px 10px;
+  transition:all .3s;
+}
+.duo-card:hover .duo-tag { border-color:rgba(184,146,74,.4); color:var(--gold); }
+.duo-qual {
+  display:inline-block; margin-bottom:10px;
+  font-family:var(--mono); font-size:9px;
+  letter-spacing:.2em; color:var(--paper);
+  background:var(--blue); padding:4px 10px;
+}
+
 /* ─── TESTIMONIALS ───────────────────────────── */
 #testimonials { background:var(--blue); }
 #testimonials .sec-label { color:rgba(184,146,74,.8); }
@@ -594,6 +665,8 @@ footer {
   #projects { padding:80px 20px; }
   .projects-grid { grid-template-columns:1fr; }
   .proj.featured { grid-row:auto; }
+  #duo { padding:80px 20px; }
+  .duo-grid { grid-template-columns:1fr; }
   #testimonials { padding:80px 20px; }
   #contact { grid-template-columns:1fr; padding:80px 20px; }
   footer { flex-direction:column; gap:16px; text-align:center; padding:24px 20px; }
@@ -650,6 +723,7 @@ footer {
     <li><a href="#about">Studio</a></li>
     <li><a href="#services">Services</a></li>
     <li><a href="#projects">Projects</a></li>
+    <li><a href="#duo">The Duo</a></li>
     <li><a href="#contact">Contact</a></li>
   </ul>
   <a href="#contact" class="nav-cta">Project Inquiry</a>
@@ -910,6 +984,67 @@ footer {
       <div class="proj-info">
         <div><div class="proj-tag">Bedroom · 2024</div><div class="proj-name">2BHK Diaries — Master Suite</div></div>
         <div class="proj-link">↗</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══ THE DUO ═══ -->
+<section id="duo">
+  <div class="reveal" style="display:flex;justify-content:space-between;align-items:flex-end">
+    <div>
+      <div class="sec-label">Principal Architects <span class="ref">// DOC-DUO-001</span></div>
+      <h2 class="sec-title">Meet <em>The Duo</em></h2>
+    </div>
+  </div>
+  <div class="duo-grid">
+
+    <div class="duo-card reveal d1">
+      <div class="duo-photo">
+        <img src="https://raw.githubusercontent.com/olimaran08/rayoriginal/main/architect1.png" alt="Ar Olimaran R" onerror="this.style.display='none'">
+        <div class="duo-photo-overlay"></div>
+        <div class="duo-corner tl"></div>
+        <div class="duo-corner tr"></div>
+        <div class="duo-corner bl"></div>
+        <div class="duo-corner br"></div>
+        <div class="duo-ref">ARCH-01 · OLI</div>
+      </div>
+      <div class="duo-info">
+        <div class="duo-role">Principal Architect · Co-founder</div>
+        <div class="duo-name">Ar Olimaran R</div>
+        <div class="duo-qual">M.Arch</div>
+        <p class="duo-bio">Leads design strategy, 3D visualization and project execution. Passionate about AI-driven design and precision-built interiors that push the boundaries of space.</p>
+        <div class="duo-tags">
+          <span class="duo-tag">Design Strategy</span>
+          <span class="duo-tag">3D Visualization</span>
+          <span class="duo-tag">Execution</span>
+          <span class="duo-tag">AI Design</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="duo-card reveal d2">
+      <div class="duo-photo">
+        <img src="https://raw.githubusercontent.com/olimaran08/rayoriginal/main/architect2.png" alt="Ar Ramya D" onerror="this.style.display='none'">
+        <div class="duo-photo-overlay"></div>
+        <div class="duo-corner tl"></div>
+        <div class="duo-corner tr"></div>
+        <div class="duo-corner bl"></div>
+        <div class="duo-corner br"></div>
+        <div class="duo-ref">ARCH-02 · RAM</div>
+      </div>
+      <div class="duo-info">
+        <div class="duo-role">Principal Architect · Co-founder</div>
+        <div class="duo-name">Ar Ramya D</div>
+        <div class="duo-qual">M.Arch</div>
+        <p class="duo-bio">Drives client experience, material curation and spatial planning. Brings warmth and meticulous detail to every space — making every project feel personal and lived-in.</p>
+        <div class="duo-tags">
+          <span class="duo-tag">Architecture</span>
+          <span class="duo-tag">Materials</span>
+          <span class="duo-tag">Spatial Planning</span>
+          <span class="duo-tag">Client UX</span>
+        </div>
       </div>
     </div>
 
